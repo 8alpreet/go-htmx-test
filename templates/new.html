@@ -1,0 +1,32 @@
+{{ define "content" }}
+    <form action="/contacts/new" method="post">
+        <fieldset>
+            <legend>Contact Value</legend>
+            <p>
+                <label for="email">Email</label>
+                <input type="email" name="email" id="email" placeholder="Email" value="{{ .Email }}">
+                <span class="error">{{ .Errors.email }}</span>
+            </p>
+            <p>
+                <label for="firstName">First Name</label>
+                <input type="text" name="firstName" id="firstName" placeholder="First Name" value="{{ .First }}">
+                <span class="error">{{ .Errors.first }}</span>
+            </p>
+            <p>
+                <label for="lastName">Last Name</label>
+                <input type="text" name="lastName" id="lastName" placeholder="Last Name" value="{{ .Last }}">
+                <span class="error">{{ .Errors.last }}</span>
+            </p>
+            <p>
+                <label for="phone">Phone</label>
+                <input type="text" name="phone" id="phone" placeholder="Phone" value="{{ .Phone }}">
+                <span class="error">{{ .Errors.phone }}</span>
+            </p>
+            <button>Save</button>
+        </fieldset>
+    </form>
+    <p>
+        <a href="/contacts">Back to Contacts</a>
+    </p>
+{{ end }}
+
