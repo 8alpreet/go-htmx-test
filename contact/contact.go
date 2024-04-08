@@ -36,11 +36,11 @@ func (c *Contact) Update(first, last, phone, email string) {
 func (c *Contact) Validate() bool {
 	c.Errors = make(map[string]string)
 	if c.Email == "" {
-		c.Errors["email"] = "Email Required"
+		c.Errors["Email"] = "Email Required"
 	}
 	for _, contact := range db {
 		if contact.ID != c.ID && contact.Email == c.Email {
-			c.Errors["email"] = "Email Must Be Unique"
+			c.Errors["Email"] = "Email Must Be Unique"
 			break
 		}
 	}
