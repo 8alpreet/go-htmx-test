@@ -15,6 +15,10 @@ func index(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/contacts", http.StatusFound)
 }
 
+func add(a, b int) int {
+	return a + b
+}
+
 func showContacts(w http.ResponseWriter, r *http.Request) {
 	log.Default().Println("showContacts handler called")
 
@@ -25,42 +29,30 @@ func showContacts(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	prevPage := page - 1
-	if prevPage < 1 {
-		prevPage = 1
-	}
-	nextPage := page + 1
-
 	gotContacts := []*contact.Contact{}
 	if search == "" {
 		gotContacts = contact.All(page)
 	} else {
 		gotContacts = contact.Search(search)
 	}
-	
-	// need to check if we they are furtehr pages of contacts to display
-	totalPages := contact.Count() / contact.PageSize
-	if contact.Count() % contact.PageSize > 0 {
-		totalPages++
-	}
 
 	data := struct {
-		PrevPage   int
-		Page       int
-		NextPage   int
-		TotalPages int
-		Query      string
-		Contacts   []*contact.Contact
+		Page     int
+		PageSize int
+		Query    string
+		Contacts []*contact.Contact
 	}{
-		PrevPage:   prevPage,
-		Page:       page,
-		NextPage:   nextPage,
-		TotalPages: totalPages,
-		Query:      search,
-		Contacts:   gotContacts,
+		Page:     page,
+		PageSize: contact.PageSize,
+		Query:    search,
+		Contacts: gotContacts,
 	}
 
-	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/index.html"))
+	funcs := template.FuncMap{
+		"add": add,
+	}
+	tmpl := template.New("layout.html").Funcs(funcs)
+	tmpl = template.Must(tmpl.ParseFiles("templates/layout.html", "templates/index.html"))
 	err = tmpl.ExecuteTemplate(w, "layout.html", data)
 	if err != nil {
 		log.Fatal(err)
