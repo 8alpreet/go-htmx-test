@@ -8,7 +8,7 @@ import (
 	// "time"
 )
 
-const PageSize = 10
+const PageSize = 4
 
 type Contact struct {
 	ID     int    `json:"id"`
