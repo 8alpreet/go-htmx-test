@@ -18,16 +18,50 @@ func index(w http.ResponseWriter, r *http.Request) {
 func showContacts(w http.ResponseWriter, r *http.Request) {
 	log.Default().Println("showContacts handler called")
 
+	search := r.URL.Query().Get("q")
+	pageStr := r.URL.Query().Get("page")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil {
+		page = 1
+	}
+
+	prevPage := page - 1
+	if prevPage < 1 {
+		prevPage = 1
+	}
+	nextPage := page + 1
+
+	gotContacts := []*contact.Contact{}
+	if search == "" {
+		gotContacts = contact.All(page)
+	} else {
+		gotContacts = contact.Search(search)
+	}
+	
+	// need to check if we they are furtehr pages of contacts to display
+	totalPages := contact.Count() / contact.PageSize
+	if contact.Count() % contact.PageSize > 0 {
+		totalPages++
+	}
+
 	data := struct {
-		Query    string
-		Contacts []*contact.Contact
+		PrevPage   int
+		Page       int
+		NextPage   int
+		TotalPages int
+		Query      string
+		Contacts   []*contact.Contact
 	}{
-		Query:    r.URL.Query().Get("q"),
-		Contacts: contact.All(1),
+		PrevPage:   prevPage,
+		Page:       page,
+		NextPage:   nextPage,
+		TotalPages: totalPages,
+		Query:      search,
+		Contacts:   gotContacts,
 	}
 
 	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/index.html"))
-	err := tmpl.ExecuteTemplate(w, "layout.html", data)
+	err = tmpl.ExecuteTemplate(w, "layout.html", data)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,7 +88,6 @@ func showContactByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
 
 func newContact(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +113,8 @@ func newContact(w http.ResponseWriter, r *http.Request) {
 			log.Default().Println("Contact saved successfully")
 			http.Redirect(w, r, "/contacts", http.StatusFound)
 		} else {
-			err := tmpl.ExecuteTemplate(w, "layout.html", contact.Contact{})
+			log.Default().Println("Error saving contact. Errors: ", newC.Errors)
+			err := tmpl.ExecuteTemplate(w, "layout.html", newC)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -124,7 +158,7 @@ func editContact(w http.ResponseWriter, r *http.Request) {
 		// }
 		c.Update(r.FormValue("first"), r.FormValue("last"), r.FormValue("phone"), r.FormValue("email"))
 		if !c.Save() {
-			log.Default().Println("Error updating contact. Errors: ", c.Errors)
+			log.Default().Println("Error saving contact. Errors: ", c.Errors)
 			err := tmpl.ExecuteTemplate(w, "layout.html", c)
 			if err != nil {
 				log.Fatal(err)
@@ -141,10 +175,10 @@ func editContact(w http.ResponseWriter, r *http.Request) {
 
 func deleteContact(w http.ResponseWriter, r *http.Request) {
 	log.Default().Println("deleteContact handler called")
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
+	// if r.Method != http.MethodPost {
+	// 	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	// 	return
+	// }
 	idStr := strings.TrimPrefix(r.URL.Path, "/contacts/")
 	idStr = strings.TrimSuffix(idStr, "/delete")
 	id, err := strconv.Atoi(idStr)
@@ -153,17 +187,55 @@ func deleteContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	contact.FindByID(id).Delete()
-	http.Redirect(w, r, "/contacts", http.StatusFound)
+	http.Redirect(w, r, "/contacts", http.StatusSeeOther)
+}
+
+func getContactEmail(w http.ResponseWriter, r *http.Request) {
+	log.Default().Println("getContactsEmail handler called")
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/contacts/")
+	idStr = strings.TrimSuffix(idStr, "/email")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	c := contact.FindByID(id)
+	if c == nil {
+		c = &contact.Contact{}
+	}
+	c.Email = r.URL.Query().Get("email")
+	c.Validate()
+
+	fmt.Fprintf(w, "%s", c.Errors["Email"])
+}
+
+func sharedContactRequestHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		showContactByID(w, r)
+	case http.MethodDelete:
+		deleteContact(w, r)
+	default:
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func main() {
 	contact.LoadDB()
 	http.HandleFunc("/", index)
 	http.HandleFunc("/contacts", showContacts)
-	http.HandleFunc("/contacts/new", newContact) // GET or POST
-	http.HandleFunc("/contacts/{id}", showContactByID)
-	http.HandleFunc("/contacts/{id}/edit", editContact)     // GET or POST
-	http.HandleFunc("/contacts/{id}/delete", deleteContact) // POST
+	http.HandleFunc("/contacts/new", newContact)        // GET or POST
+	http.HandleFunc("/contacts/{id}/edit", editContact) // GET or POST
+	http.HandleFunc("/contacts/{id}", sharedContactRequestHandler)
+	http.HandleFunc("/contacts/{id}/email", getContactEmail)
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	fmt.Println("Server is running on: http://localhost:8080")
 	http.ListenAndServe(":8080", nil)

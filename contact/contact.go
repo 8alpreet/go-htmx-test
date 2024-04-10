@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
+	// "time"
 )
 
-const PageSize = 100
+const PageSize = 10
 
 type Contact struct {
 	ID     int    `json:"id"`
@@ -71,7 +71,7 @@ func (c *Contact) Delete() {
 }
 
 func Count() int {
-	time.Sleep(2 * time.Second)
+	// time.Sleep(2 * time.Second)
 	return len(db)
 }
 

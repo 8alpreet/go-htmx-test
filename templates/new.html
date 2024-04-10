@@ -5,22 +5,22 @@
             <p>
                 <label for="email">Email</label>
                 <input type="email" name="email" id="email" placeholder="Email" value="{{ .Email }}">
-                <span class="error">{{ .Errors.email }}</span>
+                <span class="error">{{ .Errors.Email }}</span>
             </p>
             <p>
                 <label for="firstName">First Name</label>
                 <input type="text" name="firstName" id="firstName" placeholder="First Name" value="{{ .First }}">
-                <span class="error">{{ .Errors.first }}</span>
+                <span class="error">{{ .Errors.First }}</span>
             </p>
             <p>
                 <label for="lastName">Last Name</label>
                 <input type="text" name="lastName" id="lastName" placeholder="Last Name" value="{{ .Last }}">
-                <span class="error">{{ .Errors.last }}</span>
+                <span class="error">{{ .Errors.Last }}</span>
             </p>
             <p>
                 <label for="phone">Phone</label>
                 <input type="text" name="phone" id="phone" placeholder="Phone" value="{{ .Phone }}">
-                <span class="error">{{ .Errors.phone }}</span>
+                <span class="error">{{ .Errors.Phone }}</span>
             </p>
             <button>Save</button>
         </fieldset>

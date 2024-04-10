@@ -1,38 +1,41 @@
 {{ define "content" }}
 
-    <form action="/contacts/{{ .ID }}/edit" method="POST">
-        <fieldset>
-            <legend>Contact Values</legend>
-            <div class="table rows">
-                <p>
-                    <label for="email">Email</label>
-                    <input type="text" name="email" id="email" value="{{ .Email }}" placeholder="Email">
-                    <span class="error">{{ .Errors.Email }}</span>
-                </p>
-                <p>
-                    <label for="first">First</label>
-                    <input type="text" name="first" id="first" value="{{ .First }}" placeholder="First Name">
-                    <span class="error">{{ .Errors.First }}</span>
-                </p>
-                <p>
-                    <label for="last">Last</label>
-                    <input type="text" name="last" id="last" value="{{ .Last }}" placeholder="Last Name">
-                    <span class="error">{{ .Errors.Last }}</span>
-                </p>
-                <p>
-                    <label for="phone">Phone</label>
-                    <input type="text" name="phone" id="phone" value="{{ .Phone }}" placeholder="Phone">
-                    <span class="error">{{ .Errors.Phone }}</span>
-                </p>
-                <button>Save</button>
-            </div>
-        </fieldset>
-    </form>
-    <form action="/contacts/{{ .ID }}/delete" method="POST">
-        <button>Delete</button>
-    </form>
-    <p>
-        <a href="/contacts">Back to Contacts</a>
-    </p>
+<form action="/contacts/{{ .ID }}/edit" method="POST">
+    <fieldset>
+        <legend>Contact Values</legend>
+        <div class="table rows">
+            <p>
+                <label for="email">Email</label>
+                <input type="text" name="email" id="email"
+                    hx-get="/contacts/{{ .ID }}/email" hx-target="next .error"
+                    hx-trigger="change, keyup delay:1000ms changed"
+                    value="{{ .Email }}" placeholder="Email">
+                <span class="error">{{ .Errors.Email }}</span>
+            </p>
+            <p>
+                <label for="first">First</label>
+                <input type="text" name="first" id="first" value="{{ .First }}" placeholder="First Name">
+                <span class="error">{{ .Errors.First }}</span>
+            </p>
+            <p>
+                <label for="last">Last</label>
+                <input type="text" name="last" id="last" value="{{ .Last }}" placeholder="Last Name">
+                <span class="error">{{ .Errors.Last }}</span>
+            </p>
+            <p>
+                <label for="phone">Phone</label>
+                <input type="text" name="phone" id="phone" value="{{ .Phone }}" placeholder="Phone">
+                <span class="error">{{ .Errors.Phone }}</span>
+            </p>
+            <button>Save</button>
+        </div>
+    </fieldset>
+</form>
+<button hx-delete="/contacts/{{ .ID }}" hx-target="body" hx-push-url="true"
+    hx-confirm="Are you sure you want to delete this contact?">
+    Delete Contact
+</button>
+<p>
+    <a href="/contacts">Back to Contacts</a>
+</p>
 {{ end }}
-
