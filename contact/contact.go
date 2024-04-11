@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	// "time"
 )
 
-const PageSize = 4
+const PageSize = 100
 
 type Contact struct {
 	ID     int    `json:"id"`
@@ -75,6 +76,9 @@ func Count() int {
 	return len(db)
 }
 
+// adding sort to the All function to avoid duplicate
+// results in the display table. Which isn't exaclty necessary but it was
+// bothering me.
 func All(page int) []*Contact {
 	start := (page - 1) * PageSize
 	end := start + PageSize
@@ -84,20 +88,31 @@ func All(page int) []*Contact {
 	if end > len(db) {
 		end = len(db)
 	}
-	var contacts []*Contact
-	for _, c := range db {
-		contacts = append(contacts, c)
+	// Sort the keys of the db map
+	var keys []int
+	for key := range db {
+		keys = append(keys, key)
 	}
-	return contacts[start:end]
+	sort.Ints(keys)
+
+	// Retrieve contacts based on sorted keys
+	var sortedContacts []*Contact
+	for _, key := range keys {
+		sortedContacts = append(sortedContacts, db[key])
+	}
+
+	return sortedContacts[start:end]
 }
 
 func Search(text string) []*Contact {
+
 	var result []*Contact
+	lowerText := strings.ToLower(text)
 	for _, c := range db {
-		if (c.First != "" && strings.Contains(c.First, text)) ||
-			(c.Last != "" && strings.Contains(c.Last, text)) ||
-			(c.Email != "" && strings.Contains(c.Email, text)) ||
-			(c.Phone != "" && strings.Contains(c.Phone, text)) {
+		if (c.First != "" && strings.Contains(strings.ToLower(c.First), lowerText)) ||
+			(c.Last != "" && strings.Contains(strings.ToLower(c.Last), lowerText)) ||
+			(c.Email != "" && strings.Contains(strings.ToLower(c.Email), lowerText)) ||
+			(c.Phone != "" && strings.Contains(strings.ToLower(c.Phone), lowerText)) {
 			result = append(result, c)
 		}
 	}

@@ -29,13 +29,6 @@ func showContacts(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	gotContacts := []*contact.Contact{}
-	if search == "" {
-		gotContacts = contact.All(page)
-	} else {
-		gotContacts = contact.Search(search)
-	}
-
 	data := struct {
 		Page     int
 		PageSize int
@@ -45,14 +38,35 @@ func showContacts(w http.ResponseWriter, r *http.Request) {
 		Page:     page,
 		PageSize: contact.PageSize,
 		Query:    search,
-		Contacts: gotContacts,
+	}
+	if search == "" {
+		data.Contacts = contact.All(page)
+	} else {
+		data.Contacts = contact.Search(search)
 	}
 
+	// when there is a search, we don't need to return the whole page
+	// just the table rows
+	// so the authors nest this check for HX-Trigger under thier
+	// check for Search != None is python. This causes trouble in Go
+	// becuase the search comes as an empty "" when the user erases
+	// the field, which causes the whole page to be rendered within the
+	// table
+	if r.Header.Get("HX-Trigger") == "search" {
+		tmpl := template.Must(template.ParseFiles("templates/rows.html"))
+		err := tmpl.ExecuteTemplate(w, "rows", data)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	// Returning the full template
 	funcs := template.FuncMap{
 		"add": add,
 	}
 	tmpl := template.New("layout.html").Funcs(funcs)
-	tmpl = template.Must(tmpl.ParseFiles("templates/layout.html", "templates/index.html"))
+	tmpl = template.Must(tmpl.ParseFiles("templates/layout.html", "templates/index.html", "templates/rows.html"))
 	err = tmpl.ExecuteTemplate(w, "layout.html", data)
 	if err != nil {
 		log.Fatal(err)

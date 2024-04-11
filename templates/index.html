@@ -1,7 +1,8 @@
 {{ define "content" }}
 <form action="/contacts" method="get" class="tool-bar">
     <label for="search">Search Term</label>
-    <input id="search" type="search" name="q" value="{{ .Query }}">
+    <input id="search" type="search" name="q" value="{{ .Query }}" hx-get="/contacts" hx-target="next tbody"
+        hx-trigger="search, keyup delay:500ms changed" hx-push-url="true">
     <input type="submit" value="Search">
 </form>
 <table>
@@ -13,28 +14,7 @@
         </tr>
     </thead>
     <tbody>
-        {{ range .Contacts }}
-        <tr>
-            <td>{{ .First }} {{ .Last }}</td>
-            <td>{{ .Email }}</td>
-            <td>{{ .Phone }}</td>
-            <td>
-                <a href="/contacts/{{ .ID }}">View</a>
-            </td>
-            <td>
-                <a href="/contacts/{{ .ID }}/edit">Edit</a>
-            </td>
-        </tr>
-        {{ end }}
-        {{ if eq (len .Contacts) .PageSize }}
-        <tr>
-            <td colspan="5" style="text-align: center;">
-                <span hx-target="closest tr" hx-trigger="revealed" hx-swap="outerHTML" hx-select="tbody > tr"
-                    hx-get="/contacts?page={{ add .Page 1 }}"></span>
-
-            </td>
-        </tr>
-        {{ end }}
+        {{ template "rows" . }}
     </tbody>
 </table>
 <p>
