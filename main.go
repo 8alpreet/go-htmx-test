@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	contact "github.com/8alpreet/go-htmx-test/contact"
 )
@@ -61,10 +64,12 @@ func showContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Returning the full template
+	// provides custom funcs for the template
+	// this was used to provide the "add" function to the template
 	funcs := template.FuncMap{
 		"add": add,
 	}
+	// Returning the full template
 	tmpl := template.New("layout.html").Funcs(funcs)
 	tmpl = template.Must(tmpl.ParseFiles("templates/layout.html", "templates/index.html", "templates/rows.html"))
 	err = tmpl.ExecuteTemplate(w, "layout.html", data)
@@ -156,12 +161,6 @@ func editContact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPost {
-		// r.ParseForm()
-		// for key, values := range r.Form {
-		// 	for _, value := range values {
-		// 		log.Default().Printf("%s: %s\n", key, value)
-		// 	}
-		// }
 		c.Update(r.FormValue("first"), r.FormValue("last"), r.FormValue("phone"), r.FormValue("email"))
 		if !c.Save() {
 			log.Default().Println("Error saving contact. Errors: ", c.Errors)
@@ -181,10 +180,12 @@ func editContact(w http.ResponseWriter, r *http.Request) {
 
 func deleteContact(w http.ResponseWriter, r *http.Request) {
 	log.Default().Println("deleteContact handler called")
-	// if r.Method != http.MethodPost {
-	// 	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-	// 	return
-	// }
+
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	idStr := strings.TrimPrefix(r.URL.Path, "/contacts/")
 	idStr = strings.TrimSuffix(idStr, "/delete")
 	id, err := strconv.Atoi(idStr)
@@ -193,7 +194,16 @@ func deleteContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	contact.FindByID(id).Delete()
-	http.Redirect(w, r, "/contacts", http.StatusSeeOther)
+
+	// request is coming for delete button in edit.html
+	// so we redirect
+	if r.Header.Get("HX-Trigger") == "delete-btn" {
+		http.Redirect(w, r, "/contacts", http.StatusSeeOther)
+		return
+	}
+	// request is coming from inline delete button in rows.html
+	// so we don't need to redirect
+	fmt.Fprint(w, "")
 }
 
 func getContactEmail(w http.ResponseWriter, r *http.Request) {
@@ -222,7 +232,52 @@ func getContactEmail(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", c.Errors["Email"])
 }
 
-func sharedContactRequestHandler(w http.ResponseWriter, r *http.Request) {
+func deleteSelectedContacts(w http.ResponseWriter, r *http.Request) {
+	log.Default().Println("deleteSelectedContacts handler called")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		// Handle error
+		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	// Convert the body to a string
+	bodyStr := string(body)
+
+	// Parse the URL-encoded string
+	values, err := url.ParseQuery(bodyStr)
+	if err != nil {
+		http.Error(w, "Error parsing request body", http.StatusInternalServerError)
+		return
+	}
+
+	// Extract the selected_contact_ids
+	selectedContactIds := values["selected_contact_ids"]
+	for _, id := range selectedContactIds {
+		intID, err := strconv.Atoi(id)
+		if err != nil {
+			log.Default().Printf("Error converting ID %s to int: %v", id, err)
+			continue
+		}
+		contact.FindByID(intID).Delete()
+	}
+
+	data := map[string]interface{}{
+		"Page":     1,
+		"PageSize": contact.PageSize,
+		"Query":    "",
+		"Contacts": contact.All(1),
+	}
+	tmpl := template.Must(template.ParseFiles("templates/layout.html", "templates/index.html", "templates/rows.html"))
+	err = tmpl.ExecuteTemplate(w, "layout.html", data)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func sharedContactIdHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		showContactByID(w, r)
@@ -233,14 +288,35 @@ func sharedContactRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func sharedContactHandler(w http.ResponseWriter, r *http.Request) {
+	log.Default().Println("sharedContactHandler handler called")
+
+	switch r.Method {
+	case http.MethodDelete:
+		deleteSelectedContacts(w, r)
+	case http.MethodGet:
+		showContacts(w, r)
+	default:
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}
+
+}
+
+func getContactCount(w http.ResponseWriter, r *http.Request) {
+	log.Default().Println("getContactCount handler called")
+	time.Sleep(2 * time.Second) // simulate a slow network call
+	fmt.Fprintf(w, "( %d total Contacts )", contact.Count())
+}
+
 func main() {
 	contact.LoadDB()
 	http.HandleFunc("/", index)
-	http.HandleFunc("/contacts", showContacts)
+	http.HandleFunc("/contacts", sharedContactHandler)
 	http.HandleFunc("/contacts/new", newContact)        // GET or POST
 	http.HandleFunc("/contacts/{id}/edit", editContact) // GET or POST
-	http.HandleFunc("/contacts/{id}", sharedContactRequestHandler)
+	http.HandleFunc("/contacts/{id}", sharedContactIdHandler)
 	http.HandleFunc("/contacts/{id}/email", getContactEmail)
+	http.HandleFunc("/contacts/count", getContactCount)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	fmt.Println("Server is running on: http://localhost:8080")

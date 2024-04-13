@@ -6,5 +6,8 @@ My translation of the code from the [Hypermedia Systems](https://hypermedia.syst
 thier own branches. Infinite scrolling was last implemented and it was messing with the active search, and I'm not sure how to make them work togehter. Plus infinite scroll is funky in this
 contacts example.
 
+## Feature Ideas
+1. Update contact count in index.html when a contact is deleted using the inline delete.
+
 
 
