@@ -1,0 +1,29 @@
+{{ define "archive-ui"}}
+<div id="archive-ui" hx-target="this" hx-swap="outerHTML"
+    style="padding-bottom: 20px; display: flex; justify-content: center;">
+    {{ if eq .Archiver.Status "Waiting" }}
+    <button hx-post="contacts/archive">
+        Download Contact Archive
+    </button>
+    {{ else }}
+        {{ if eq .Archiver.Status "Running" }}
+            <div>
+                Creating Archive...
+                <div hx-get="contacts/archive" hx-trigger="load delay:500ms">
+                    <div class="progress">
+                        {{ $progressPercent := mul .Archiver.Progress 100 }}
+                        <div id="archive-progress" class="progress-bar" role="progressbar" aria-valuenow="{{ $progressPercent }}"
+                            style="width: {{ $progressPercent }}%">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {{ else }}
+        <div>
+            <a hx-boost="false" href="/contacts/archive/file" _="on load click() me">Archive Ready! Click here to download. &downarrow;</a>
+            <button style="margin-left: 10px;" hx-delete="contacts/archive">Delete Archive</button>
+        </div>
+        {{ end }}
+    {{ end }}
+</div>
+{{ end }}

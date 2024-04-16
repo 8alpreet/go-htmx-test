@@ -1,4 +1,5 @@
 {{ define "content" }}
+{{ template "archive-ui" . }}
 <form action="/contacts" method="get" class="tool-bar">
     <label for="search">Search Term</label>
     <input id="search" type="search" name="q" value="{{ .Query }}" hx-get="/contacts" hx-target="next tbody"

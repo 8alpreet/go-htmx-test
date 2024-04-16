@@ -21,6 +21,22 @@ func index(w http.ResponseWriter, r *http.Request) {
 func add(a, b int) int {
 	return a + b
 }
+func mul(a float64, b int) int {
+	return int(a * float64(b))
+}
+
+func renderHomeTemplate(w http.ResponseWriter, data interface{}) {
+	funcs := template.FuncMap{
+		"add": add,
+		"mul": mul,
+	}
+	tmpl := template.New("layout.html").Funcs(funcs)
+	tmpl = template.Must(tmpl.ParseFiles("templates/layout.html", "templates/index.html", "templates/rows.html", "templates/archiveUI.html"))
+	err := tmpl.ExecuteTemplate(w, "layout.html", data)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 func showContacts(w http.ResponseWriter, r *http.Request) {
 	log.Default().Println("showContacts handler called")
@@ -37,10 +53,12 @@ func showContacts(w http.ResponseWriter, r *http.Request) {
 		PageSize int
 		Query    string
 		Contacts []*contact.Contact
+		Archiver *contact.Archiver
 	}{
 		Page:     page,
 		PageSize: contact.PageSize,
 		Query:    search,
+		Archiver: contact.NewArchiver(),
 	}
 	if search == "" {
 		data.Contacts = contact.All(page)
@@ -66,16 +84,17 @@ func showContacts(w http.ResponseWriter, r *http.Request) {
 
 	// provides custom funcs for the template
 	// this was used to provide the "add" function to the template
-	funcs := template.FuncMap{
-		"add": add,
-	}
+	// funcs := template.FuncMap{
+	// 	"add": add,
+	// }
 	// Returning the full template
-	tmpl := template.New("layout.html").Funcs(funcs)
-	tmpl = template.Must(tmpl.ParseFiles("templates/layout.html", "templates/index.html", "templates/rows.html"))
-	err = tmpl.ExecuteTemplate(w, "layout.html", data)
-	if err != nil {
-		log.Fatal(err)
-	}
+	renderHomeTemplate(w, data)
+	// tmpl := template.New("layout.html").Funcs(funcs)
+	// tmpl = template.Must(tmpl.ParseFiles("templates/layout.html", "templates/index.html", "templates/rows.html"))
+	// err = tmpl.ExecuteTemplate(w, "layout.html", data)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
 }
 
@@ -308,6 +327,66 @@ func getContactCount(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "( %d total Contacts )", contact.Count())
 }
 
+func sharedArchiveHandler(w http.ResponseWriter, r *http.Request) {
+	log.Default().Println("sharedArchiveHandler called")
+
+	funcs := template.FuncMap{
+		"mul": mul,
+	}
+	tmpl := template.New("archiveUI.html").Funcs(funcs)
+	tmpl = template.Must(tmpl.ParseFiles("templates/archiveUI.html"))
+	if r.Method == http.MethodPost {
+		arch := contact.NewArchiver()
+		arch.Run()
+		data := map[string]interface{}{
+			"Archiver": arch,
+		}
+
+		err := tmpl.ExecuteTemplate(w, "archive-ui", data)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	if r.Method == http.MethodGet {
+		arch := contact.NewArchiver()
+		data := map[string]interface{}{
+			"Archiver": arch,
+		}
+		err := tmpl.ExecuteTemplate(w, "archive-ui", data)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+
+	}
+
+	if r.Method == http.MethodDelete {
+		arch := contact.NewArchiver()
+		arch.Reset()
+		data := map[string]interface{}{
+			"Archiver": arch,
+		}
+		err := tmpl.ExecuteTemplate(w, "archive-ui", data)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+}
+// the file opens in the browser instead of a typical download
+// but I think that's acceptable for now
+func downloadArchiveFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	log.Default().Println("downloadArchiveFile handler called")
+	http.ServeFile(w, r, "contacts.json")
+}
+
 func main() {
 	contact.LoadDB()
 	http.HandleFunc("/", index)
@@ -317,6 +396,8 @@ func main() {
 	http.HandleFunc("/contacts/{id}", sharedContactIdHandler)
 	http.HandleFunc("/contacts/{id}/email", getContactEmail)
 	http.HandleFunc("/contacts/count", getContactCount)
+	http.HandleFunc("/contacts/archive", sharedArchiveHandler)     // POST or GET
+	http.HandleFunc("/contacts/archive/file", downloadArchiveFile) // GET
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	fmt.Println("Server is running on: http://localhost:8080")
